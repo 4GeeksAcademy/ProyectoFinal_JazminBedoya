@@ -2,7 +2,9 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-from models import *
+
+
+
 import os
 
 app =  Flask (__name__)
@@ -22,6 +24,9 @@ CORS(app)
 @app.route('/')
 def home():
     return "Backend funcionando"
+
+
+from backend import routes
 
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
-from app import db
+from backend.app import db
 
 
-class User(db.model):
+class User(db.Model):
     __tablename__ = "user"
 
 
@@ -20,13 +20,13 @@ class User(db.model):
         }
     
 
-class Product(db.model):
+class Product(db.Model):
     __tablename__ = "product"
 
     id = db.Column(db.Integer, primary_key = True)
     name = db.Column(db.String(100), nullable = False)
     descripcion = db.Column(db.String(300))
-    price = db.Column(db.float, nullable = False)
+    price = db.Column(db.Float, nullable = False)
     image = db.Column(db.String(300))
 
     
@@ -42,7 +42,7 @@ class Product(db.model):
 
         }
 
-class CartItem(db.model):
+class CartItem(db.Model):
     __tablename__ = "cart_item"
 
     id = db.Column(db.Integer, primary_key = True)
@@ -61,7 +61,7 @@ class CartItem(db.model):
 
 #Si es que tengo que implementar pago
 
-class Order(db.model):
+class Order(db.Model):
     __tablename__  = "order"
 
     id = db.Column(db.Integer, primary_key = True)
