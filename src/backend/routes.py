@@ -26,18 +26,31 @@ def register():
     return jsonify(user.serialize()), 201
 
 
-# Valida credenciales y devuelve JwT
+# Valida credenciales y devuelve JWT
 @app.route("/auth/login", methods=['POST'])
 def login():
-    data = request.get_json()  # Leo JSON del body
-    user = User.query.filter_by(email=data=get("email")).first()
+    # Obtengo el JSON que viene del body del request (correo y contraseña)
+    data = request.get_json()
 
+    # Busco el usuario en la base de datos por su email
+    user = User.query.filter_by(email=data.get("email")).first()
+
+    #  Si no existe el usuario o la contraseña no coincide, devuelvo error
     if not user or not user.check_password(data.get("password", "")):
-        return jsonify(["error": "Credenciales invalidas"])
+        return jsonify({"error": "Credenciales inválidas"}), 401
+
+    #  Si todo está bien, creo el token JWT (requiere que JWTManager esté inicializado)
+    access_token = create_access_token(identity=user.id)
+
+    # Devuelvo el token y los datos del usuario
+    return jsonify({
+        "token": access_token,
+        "user": user.serialize()
+    }), 200
 
 
 #   PERFIL DEL USUARIO
-# ============================
+
 
 # /users/me: requiere token. Permite ver, editar y borrar tu cuenta.
 @app.route("/users/me", methods=["GET", "PUT", "DELETE"])
