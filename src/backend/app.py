@@ -27,7 +27,7 @@ def home():
     return "API de ventas de Ganado Vacuno en Paraguay funcionando"
 
 
-from backend.routes import routes
+from backend import routes
 
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':
