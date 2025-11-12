@@ -9,23 +9,33 @@ class User(db.Model):
     name = db.Column(db.String(150))
     email = db.Column(db.String(120),unique = True, nullable= False)
     password = db.Column(db.String(200), nullable = False)
+    role = db.column(db.String(50), default= "vendedor")
 
-    cart_items = db.relationship("CartItem", backref= "user", lazy=True)
+    ganado = db.relationship("Ganado", backref= "owner", lazy=True)
+    ventas = db.relationship("Venta", backref= "buyer", lazy= True)
+
+    def set_password(self, password):
+        self.password = generate_password_hash(password).decode("utf-8")
+
+    def check_password(self, password):
+        return check_password_hash(self.password, password)
 
     def serialize(self):
-        return{
-            "id":self.id,
+        return {
+            "id": self.id,
             "name": self.name,
-            "email": self.email
+            "email": self.email,
+            "role": self.role
         }
-    
 
-class Product(db.Model):
-    __tablename__ = "product"
+
+class Ganado(db.Model):
+    __tablename__ = "ganado"
 
     id = db.Column(db.Integer, primary_key = True)
-    name = db.Column(db.String(100), nullable = False)
-    descripcion = db.Column(db.String(300))
+    breed = db.Column(db.String(100), nullable = False) #raza
+    weight= db.Column(db.float,nullable= False) #peso
+    description = db.Column(db.String(300))
     price = db.Column(db.Float, nullable = False)
     image = db.Column(db.String(300))
 
