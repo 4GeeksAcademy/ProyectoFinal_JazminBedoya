@@ -5,11 +5,12 @@ from flask_jwt_extended import JWTManager
 
 
 
+
 import os
 
 app =  Flask (__name__)#Crea la instancia de mi aplicacion flask, todo cuelga de app
 
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:////ganado_ventas.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///ganado_ventas.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["JWT_SECRET_KEY"] = "clave-secreta"  # esto puedo cambiar luego
 
@@ -27,7 +28,7 @@ def home():
     return "API de ventas de Ganado Vacuno en Paraguay funcionando"
 
 
-from backend import routes
+from backend import models, routes
 
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':
