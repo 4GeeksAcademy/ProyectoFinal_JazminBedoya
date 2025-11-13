@@ -1,27 +1,26 @@
 from datetime import datetime
-from flask_bcrypt import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 from backend.extensions import db
 
-
-
+# -----------------------------------------
+# MODELO DE USUARIOS
+# -----------------------------------------
 class User(db.Model):
-    __tablename__ = "users"
-
+    __tablename__ = "users"  # ✅ el nombre de la tabla debe ser plural
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(150), nullable= False)
-    email = db.Column(db.String(120),unique = True, nullable= False)
-    password = db.Column(db.String(200), nullable = False)
-    role = db.Column(db.String(50), default= "vendedor")
+    name = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+    role = db.Column(db.String(50), default="vendedor")
 
-    ganado = db.relationship("Ganado", backref= "owner", lazy=True) #Un user puede tener varios ganados que vende
-    ventas = db.relationship("Venta", backref= "buyer", lazy= True) #Un user puede aparecer como comprador 
+    # Relaciones
+    ganado = db.relationship("Ganado", backref="owner", lazy=True)
+    ventas = db.relationship("Venta", backref="buyer", lazy=True)
 
-    
-    #Metodo para guardar la contraseña encriptada y verificar el login
-    
+    # Métodos
     def set_password(self, password):
-        self.password = generate_password_hash(password).decode("utf-8")
+        self.password = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password, password)
@@ -31,72 +30,62 @@ class User(db.Model):
             "id": self.id,
             "name": self.name,
             "email": self.email,
-            "role": self.role
+            "role": self.role,
         }
 
 
+# -----------------------------------------
+# MODELO DE GANADO (PRODUCTO)
+# -----------------------------------------
 class Ganado(db.Model):
     __tablename__ = "ganado"
 
-    id = db.Column(db.Integer, primary_key = True)
-    breed = db.Column(db.String(100), nullable = False) #raza
-    weight= db.Column(db.Float,nullable= False) #peso
+    id = db.Column(db.Integer, primary_key=True)
+    breed = db.Column(db.String(100), nullable=False)
+    weight = db.Column(db.Float, nullable=False)
     description = db.Column(db.String(300))
-    price = db.Column(db.Float, nullable = False)
+    price = db.Column(db.Float, nullable=False)
     image = db.Column(db.String(300))
-    is_sold = db.Column(db.Boolean, default=False) #si ya fue vendido
+    is_sold = db.Column(db.Boolean, default=False)
 
-     #A que usuario (vendedor) pertenece el animal
+    # 🔗 Clave foránea: cada lote pertenece a un usuario (vendedor)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     def serialize(self):
-        return{
+        return {
             "id": self.id,
             "breed": self.breed,
             "weight": self.weight,
             "description": self.description,
             "price": self.price,
             "image": self.image,
-            "is_sold": self.is_sold
-
+            "is_sold": self.is_sold,
+            "user_id": self.user_id,
         }
 
+
+# -----------------------------------------
+# MODELO DE VENTAS
+# -----------------------------------------
 class Venta(db.Model):
     __tablename__ = "ventas"
 
-    id = db.Column(db.Integer, primary_key = True)
-    ganado_id = db.Column(db.Integer, db.ForeignKey("ganado.id"), nullable = False)
-    comprador_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable = False) #buyer=comprador
-    venta_fecha = db.Column(db.DateTime, default = datetime.utcnow)
-    precio_total = db.Column(db.Float, nullable= False)
+    id = db.Column(db.Integer, primary_key=True)
+
+    # 🔗 Clave foránea: a qué animal pertenece esta venta
+    ganado_id = db.Column(db.Integer, db.ForeignKey("ganado.id"), nullable=False)
+
+    # 🔗 Clave foránea: quién compró (referencia a la tabla users)
+    comprador_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    venta_fecha = db.Column(db.DateTime, default=datetime.utcnow)
+    precio_total = db.Column(db.Float, nullable=False)
 
     def serialize(self):
-        return{
+        return {
             "id": self.id,
             "ganado_id": self.ganado_id,
             "comprador_id": self.comprador_id,
             "venta_fecha": self.venta_fecha,
-
-            "precio_total": self.precio_total
+            "precio_total": self.precio_total,
         }
-
-
-#Si es que tengo que implementar pago
-
-class Order(db.Model):
-    __tablename__  = "orders"
-
-    id = db.Column(db.Integer, primary_key = True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user_id"), nullable = False)
-    total = db.Column(db.Float, nullable = False)
-    status = db.Column(db.String(50), default ="pending")
-
-    def serialize(self):
-        return{
-            "id": self.id,
-            "user_id": self.user_id,
-            "total": self.total,
-            "status": self.status
-        }
-
-     

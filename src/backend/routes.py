@@ -1,198 +1,201 @@
 # backend/routes.py
-from flask import jsonify, request
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+# src/backend/routes.py
+from flask import request, jsonify
+from flask_jwt_extended import (
+    create_access_token, jwt_required, get_jwt_identity
+)
 from backend.extensions import db
 from backend.models import User, Ganado, Venta
 
 
-
-# Registro de usuarios
 def register_routes(app):
+    """
+    Registra todas las rutas en la instancia de Flask que recibe.
+    IMPORTANTE: no uses @app.route fuera de esta función.
+    """
 
+    # ---------------------
+    # Auth: Login
+    # ---------------------
+    @app.route("/auth/login", methods=['POST'])
+    def login():
+        data = request.get_json() or {}
 
-  @app.route("/auth/register", methods=['POST'])
-  def create_user():
-    data = request.get_json()  # Leo JSON del body
-    # Validaciones basicas
-    if not data or "email" not in data or "password" not in data:
-        return jsonify({"error": "Faltan campos"}), 400
-    if User.query.filter_by(email=data["email"]).first():
-        return jsonify({"error": "Email ya registrado"}), 400
+        # Buscar user por email
+        user = User.query.filter_by(email=data.get("email")).first()
 
-    # Creo el usuario y guardo el hash de contraseña
-    user = User(name=data.get("name", ""), email=data["email"])
-    user.set_password(data["password"])
-    db.session.add(user)
-    db.session.commit()
+        # Validar existencia + password
+        if not user or not user.check_password(data.get("password", "")):
+            return jsonify({"error": "Credenciales inválidas"}), 401
 
-    return jsonify(user.serialize()), 201
+        # Crear token
+        token = create_access_token(identity=user.id)
 
+        return jsonify({
+            "token": token,
+            "user": user.serialize()
+        }), 200
 
-# Valida credenciales y devuelve JWT
-@app.route("/auth/login", methods=['POST'])
-def login():
-    # Obtengo el JSON que viene del body del request (correo y contraseña)
-    data = request.get_json()
+    # ---------------------
+    # Usuarios: Registro
+    # ---------------------
+    @app.route("/users", methods=['POST'])
+    def create_user():
+        data = request.get_json() or {}
 
-    # Busco el usuario en la base de datos por su email
-    user = User.query.filter_by(email=data.get("email")).first()
+        # Validaciones básicas
+        if not data.get("email") or not data.get("password"):
+            return jsonify({"error": "Faltan datos (email/password)"}), 400
 
-    #  Si no existe el usuario o la contraseña no coincide, devuelvo error
-    if not user or not user.check_password(data.get("password", "")):
-        return jsonify({"error": "Credenciales inválidas"}), 401
+        if User.query.filter_by(email=data.get("email")).first():
+            return jsonify({"error": "El email ya está registrado"}), 400
 
-    #  Si todo está bien, creo el token JWT (requiere que JWTManager esté inicializado)
-    access_token = create_access_token(identity=user.id)
+        # Crear usuario
+        user = User(
+            name=data.get("name"),
+            email=data.get("email"),
+        )
+        user.set_password(data.get("password"))
 
-    # Devuelvo el token y los datos del usuario
-    return jsonify({
-        "token": access_token,
-        "user": user.serialize()
-    }), 200
+        db.session.add(user)
+        db.session.commit()
 
+        return jsonify(user.serialize()), 201
 
-#   PERFIL DEL USUARIO
-
-
-# /users/me: requiere token. Permite ver, editar y borrar tu cuenta.
-@app.route("/users/me", methods=["GET", "PUT", "DELETE"])
-@jwt_required()  # Exige Authorization: Bearer <token>
-def me():
-    uid = get_jwt_identity()          # Leo el id del usuario desde el token
-    user = User.query.get_or_404(uid)  # Busco el usuario o 404
-
-    if request.method == "GET":
-        # Devuelvo mi perfil
+    # ---------------------
+    # Perfil (protegido)
+    # ---------------------
+    @app.route("/profile", methods=['GET'])
+    @jwt_required()
+    def get_profile():
+        uid = get_jwt_identity()
+        user = User.query.get_or_404(uid)
         return jsonify(user.serialize()), 200
 
-    if request.method == "PUT":
-        # Actualizo mi perfil
-        data = request.get_json()
+    @app.route("/profile", methods=['PUT'])
+    @jwt_required()
+    def update_profile():
+        uid = get_jwt_identity()
+        user = User.query.get_or_404(uid)
+        data = request.get_json() or {}
+
+        # Actualizar campos permitidos
         user.name = data.get("name", user.name)
-        user.email = data.get("email", user.email)
+        email = data.get("email")
+        if email and email != user.email:
+            if User.query.filter_by(email=email).first():
+                return jsonify({"error": "Ese email ya está en uso"}), 400
+            user.email = email
+
         if "password" in data and data["password"]:
             user.set_password(data["password"])
+
         db.session.commit()
-        return jsonify({"message": "Perfil actualizado"}), 200
+        return jsonify(user.serialize()), 200
 
-    # DELETE: Elimino mi cuenta
-    db.session.delete(user)
-    db.session.commit()
-    return jsonify({"message": "Cuenta eliminada"}), 200
+    @app.route("/profile", methods=['DELETE'])
+    @jwt_required()
+    def delete_profile():
+        uid = get_jwt_identity()
+        user = User.query.get_or_404(uid)
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({"message": "Cuenta eliminada"}), 200
 
+    # ---------------------
+    # Ganado (CRUD simple)
+    # ---------------------
+    @app.route("/ganado", methods=['GET'])
+    def list_ganado():
+        items = Ganado.query.all()
+        return jsonify([g.serialize() for g in items]), 200
 
-#   GANADO (CATÁLOGO / CRUD)
+    @app.route("/ganado/<int:gid>", methods=['GET'])
+    def get_ganado(gid):
+        g = Ganado.query.get_or_404(gid)
+        return jsonify(g.serialize()), 200
 
+    @app.route("/ganado", methods=['POST'])
+    @jwt_required()
+    def create_ganado():
+        uid = get_jwt_identity()
+        data = request.get_json() or {}
 
-# Listado público de lotes (puedes filtrar por is_sold=False si quieres)
-@app.route("/ganado", methods=["GET"])
-def list_ganado():
-    items = Ganado.query.order_by(Ganado.published_date.desc()).all()
-    return jsonify([g.serialize() for g in items]), 200
+        required = ("breed", "weight", "price")
+        if any(not data.get(k) for k in required):
+            return jsonify({"error": "Faltan campos obligatorios"}), 400
 
-# Detalle de un lote
+        g = Ganado(
+            breed=data["breed"],
+            weight=float(data["weight"]),
+            price=float(data["price"]),
+            description=data.get("description"),
+            image=data.get("image"),
+            user_id=uid,
+        )
+        db.session.add(g)
+        db.session.commit()
+        return jsonify(g.serialize()), 201
 
+    @app.route("/ganado/<int:gid>", methods=['PUT'])
+    @jwt_required()
+    def update_ganado(gid):
+        uid = get_jwt_identity()
+        g = Ganado.query.get_or_404(gid)
 
-@app.route("/ganado/<int:id>", methods=["GET"])
-def get_ganado(id):
-    g = Ganado.query.get_or_404(id)
-    return jsonify(g.serialize()), 200
+        # Solo dueño puede editar
+        if g.user_id != uid:
+            return jsonify({"error": "No autorizado"}), 403
 
-# Crear un lote (requiere estar logueado)
+        data = request.get_json() or {}
+        g.breed = data.get("breed", g.breed)
+        g.weight = float(data.get("weight", g.weight))
+        g.price = float(data.get("price", g.price))
+        g.description = data.get("description", g.description)
+        g.image = data.get("image", g.image)
 
+        db.session.commit()
+        return jsonify(g.serialize()), 200
 
-@app.route("/ganado", methods=["POST"])
-@jwt_required()
-def create_ganado():
-    uid = get_jwt_identity()  # id del vendedor autenticado
-    data = request.get_json()
+    @app.route("/ganado/<int:gid>", methods=['DELETE'])
+    @jwt_required()
+    def delete_ganado(gid):
+        uid = get_jwt_identity()
+        g = Ganado.query.get_or_404(gid)
 
-    # Valido campos mínimos
-    required = ["breed", "weight", "price"]
-    if not all(k in data for k in required):
-        return jsonify({"error": "Faltan datos del ganado"}), 400
+        if g.user_id != uid:
+            return jsonify({"error": "No autorizado"}), 403
 
-    # Creo el objeto Ganado con los datos
-    g = Ganado(
-        lote_numero=data.get("lote_numero"),
-        categoria=data.get("categoria"),
-        breed=data["breed"],
-        weight=data["weight"],
-        description=data.get("description"),
-        location=data.get("location"),
-        price=data["price"],
-        image=data.get("image"),
-        video_url=data.get("video_url"),
-        user_id=uid,  # asocio el lote al usuario actual
-    )
-    db.session.add(g)
-    db.session.commit()
-    return jsonify(g.serialize()), 201
+        db.session.delete(g)
+        db.session.commit()
+        return jsonify({"message": "Eliminado"}), 200
 
-# Editar un lote (solo el dueño)
+    # ---------------------
+    # Ventas (checkout simple)
+    # ---------------------
+    @app.route("/ventas", methods=['POST'])
+    @jwt_required()
+    def create_venta():
+        buyer_id = get_jwt_identity()
+        data = request.get_json() or {}
+        g = Ganado.query.get_or_404(data.get("ganado_id"))
 
+        if g.is_sold:
+            return jsonify({"error": "El animal ya fue vendido"}), 400
 
-@app.route("/ganado/<int:id>", methods=["PUT"])
-@jwt_required()
-def update_ganado(id):
-    uid = get_jwt_identity()
-    g = Ganado.query.get_or_404(id)
+        v = Venta(
+            comprador_id=buyer_id,
+            ganado_id=g.id,
+            precio_total=g.price
+        )
+        g.is_sold = True
 
-    # Si el lote tiene dueño y no soy yo -> 403 Forbidden
-    if g.user_id and g.user_id != uid:
-        return jsonify({"error": "No autorizado"}), 403
+        db.session.add(v)
+        db.session.commit()
+        return jsonify(v.serialize()), 201
 
-    # Aplico cambios solo a campos presentes en el JSON
-    data = request.get_json()
-    for field in ["lote_numero", "categoria", "breed", "weight", "description",
-                  "location", "price", "image", "video_url", "is_sold"]:
-        if field in data:
-            setattr(g, field, data[field])
-
-    db.session.commit()
-    return jsonify(g.serialize()), 200
-
-# Eliminar un lote (solo el dueño)
-
-
-@app.route("/ganado/<int:id>", methods=["DELETE"])
-@jwt_required()
-def delete_ganado(id):
-    uid = get_jwt_identity()
-    g = Ganado.query.get_or_404(id)
-    if g.user_id and g.user_id != uid:
-        return jsonify({"error": "No autorizado"}), 403
-
-    db.session.delete(g)
-    db.session.commit()
-    return jsonify({"message": "Ganado eliminado"}), 200
-
-
-#   VENTAS (CHECKOUT SIMPLE)
-
-
-# Crear una venta del lote seleccionado
-@app.route("/ventas", methods=["POST"])
-@jwt_required()
-def create_venta():
-    buyer_id = get_jwt_identity()               # id del comprador
-    data = request.get_json()
-    g = Ganado.query.get_or_404(data.get("ganado_id"))
-
-    if g.is_sold:
-        return jsonify({"error": "El animal ya fue vendido"}), 400
-
-    v = Venta(comprador_id=buyer_id, ganado_id=g.id, precio_total=g.price)
-    g.is_sold = True  # marco el lote como vendido
-    db.session.add(v)
-    db.session.commit()
-    return jsonify(v.serialize()), 201
-
-# Listar ventas (ejemplo: admin o para debug)
-
-
-@app.route("/ventas", methods=["GET"])
-@jwt_required()
-def list_ventas():
-    ventas = Venta.query.all()
-    return jsonify([v.serialize() for v in ventas]), 200
+    @app.route("/ventas", methods=['GET'])
+    @jwt_required()
+    def list_ventas():
+        ventas = Venta.query.all()
+        return jsonify([v.serialize() for v in ventas]), 200
