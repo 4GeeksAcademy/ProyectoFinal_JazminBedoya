@@ -1,8 +1,6 @@
-from backend.app import db
-from app import db
-
 from datetime import datetime
 from flask_bcrypt import generate_password_hash, check_password_hash
+from backend.app import db 
 
 
 class User(db.Model):
@@ -18,6 +16,7 @@ class User(db.Model):
     ganado = db.relationship("Ganado", backref= "owner", lazy=True) #Un user puede tener varios ganados que vende
     ventas = db.relationship("Venta", backref= "buyer", lazy= True) #Un user puede aparecer como comprador 
 
+    
     #Metodo para guardar la contraseña encriptada y verificar el login
     
     def set_password(self, password):
@@ -75,7 +74,7 @@ class Venta(db.Model):
             "id": self.id,
             "ganado_id": self.ganado_id,
             "comprador_id": self.comprador_id,
-            "venta_fecha": self.venta_fecha.strftime("%Y-%m-%d %H:%M:%S"),
+            "venta_fecha": self.venta_fecha,
 
             "precio_total": self.precio_total
         }

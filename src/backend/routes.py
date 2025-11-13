@@ -1,9 +1,9 @@
 # backend/routes.py
-from flask import request, jsonify
+from flask import jsonify, request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from backend.app import app, db
 from backend.models import User, Ganado, Venta
-from datetime import timedelta
+
 
 
 # Registro de usuarios
