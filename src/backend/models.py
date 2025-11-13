@@ -1,6 +1,7 @@
 from datetime import datetime
 from flask_bcrypt import generate_password_hash, check_password_hash
-from backend.app import db 
+from backend.extensions import db
+
 
 
 class User(db.Model):

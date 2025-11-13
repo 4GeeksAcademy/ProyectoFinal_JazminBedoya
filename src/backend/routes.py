@@ -1,15 +1,17 @@
 # backend/routes.py
 from flask import jsonify, request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from backend.app import app, db
+from backend.extensions import db
 from backend.models import User, Ganado, Venta
 
 
 
 # Registro de usuarios
+def register_routes(app):
 
-@app.route("/auth/register", methods=['POST'])
-def register():
+
+  @app.route("/auth/register", methods=['POST'])
+  def create_user():
     data = request.get_json()  # Leo JSON del body
     # Validaciones basicas
     if not data or "email" not in data or "password" not in data:
