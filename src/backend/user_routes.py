@@ -1,34 +1,62 @@
 from flask import request, jsonify
-from models import User
-from app  import db
-from app import app
+from src.backend.models import db, User
 
 
+def register_user_routes(app):
 
-@app.route("/users", methods=["GET", "POST"])
-def get_or_add_user():
+    @app.route("/users", methods=["GET", "POST"])
+    def get_or_add_user():
 
         if request.method == "GET":
             result = User.query.all()
             result = [u.serialize() for u in result]
-            return jsonify(result), 200
-
+            return jsonify({"estado": "ok", "usuarios": result}), 200
 
         if request.method == "POST":
             datos = request.get_json()
 
-            # Validación básica
-            if User.query.filter_by(email=datos.get("email")).first():
-                return jsonify({"error": "Ese email ya está registrado"}), 400
-
-            new_user = User(
-                name=datos.get("name"),
-                email=datos.get("email"),
-                role=datos.get("role")
+            nuevo = User(
+                name=datos["name"],
+                email=datos["email"],
+                password=datos["password"],
+                role=datos.get("role", "vendedor")
             )
 
-            # Hashear contraseña
-            new_user.set_password(datos.get("password"))
-
-            db.session.add(new_user)
+            db.session.add(nuevo)
             db.session.commit()
+
+            return jsonify({
+                "estado": "ok",
+                "mensaje": "Usuario creado correctamente"
+            }), 201
+
+    @app.route("/users/<int:id>", methods=["GET", "DELETE"])
+    def get_or_delete_user(id):
+
+        user = User.query.get(id)
+
+        # ----- GET -----
+        if request.method == "GET":
+            if not user:
+                return jsonify({
+                    "estado": "error",
+                    "mensaje": "Usuario no encontrado"
+                }), 404
+
+            return jsonify(user.serialize()), 200
+
+        # ----- DELETE -----
+        if request.method == "DELETE":
+            if not user:
+                return jsonify({
+                    "estado": "error",
+                    "mensaje": "El usuario no existe"
+                }), 404
+
+            db.session.delete(user)
+            db.session.commit()
+
+            return jsonify({
+                "estado": "ok",
+                "mensaje": "Usuario eliminado correctamente"
+            }), 200

@@ -1,10 +1,9 @@
+from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-from werkzeug.security import generate_password_hash, check_password_hash
-from backend.extensions import db
 
-# -----------------------------------------
-# MODELO DE USUARIOS
-# -----------------------------------------
+
+db = SQLAlchemy()
+
 class User(db.Model):
     __tablename__ = "users"
 
@@ -14,16 +13,7 @@ class User(db.Model):
     password = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(50), default="vendedor")
 
-    ganado = db.relationship("Ganado", backref="owner", lazy=True)
-    ventas = db.relationship("Venta", backref="buyer", lazy=True)
-
-    # Métodos
-    def set_password(self, password):
-        self.password = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password, password)
-
+    
     def serialize(self):
         return {
             "id": self.id,
@@ -47,7 +37,7 @@ class Ganado(db.Model):
     image = db.Column(db.String(300))
     is_sold = db.Column(db.Boolean, default=False)
 
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
 
     def serialize(self):
         return {
