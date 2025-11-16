@@ -6,7 +6,7 @@ from backend.extensions import db
 # MODELO DE USUARIOS
 # -----------------------------------------
 class User(db.Model):
-    __tablename__ = "users"  # ✅ el nombre de la tabla debe ser plural
+    __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
@@ -14,7 +14,6 @@ class User(db.Model):
     password = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(50), default="vendedor")
 
-    # Relaciones
     ganado = db.relationship("Ganado", backref="owner", lazy=True)
     ventas = db.relationship("Venta", backref="buyer", lazy=True)
 
@@ -35,7 +34,7 @@ class User(db.Model):
 
 
 # -----------------------------------------
-# MODELO DE GANADO (PRODUCTO)
+# MODELO DE GANADO
 # -----------------------------------------
 class Ganado(db.Model):
     __tablename__ = "ganado"
@@ -48,7 +47,6 @@ class Ganado(db.Model):
     image = db.Column(db.String(300))
     is_sold = db.Column(db.Boolean, default=False)
 
-    # 🔗 Clave foránea: cada lote pertenece a un usuario (vendedor)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     def serialize(self):
@@ -71,11 +69,7 @@ class Venta(db.Model):
     __tablename__ = "ventas"
 
     id = db.Column(db.Integer, primary_key=True)
-
-    # 🔗 Clave foránea: a qué animal pertenece esta venta
     ganado_id = db.Column(db.Integer, db.ForeignKey("ganado.id"), nullable=False)
-
-    # 🔗 Clave foránea: quién compró (referencia a la tabla users)
     comprador_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     venta_fecha = db.Column(db.DateTime, default=datetime.utcnow)

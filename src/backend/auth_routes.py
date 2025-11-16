@@ -1,18 +1,14 @@
-# backend/routes.py
-
 from flask import request, jsonify
-from flask_jwt_extended import create_access_token
-from backend.extensions import db
-from backend.models import User
+
+from models import User
+from app import app
+from app import db
 
 
-def register_routes(app):
 
-    # ============================================================
-    #   LOGIN
-    # ============================================================
-    @app.route("/login", methods=["POST"])
-    def login():
+
+@app.route("/login", methods=["POST"])
+def login():
         datos = request.get_json()
 
         email = datos.get("email")
@@ -26,7 +22,7 @@ def register_routes(app):
         if not user:
             return jsonify({"error": "Usuario no encontrado"}), 404
 
-        if user.password != password:
+        if not user.check_password(password):
             return jsonify({"error": "Contraseña incorrecta"}), 401
 
         token = create_access_token(identity=user.id)
@@ -36,27 +32,37 @@ def register_routes(app):
             "token": token,
             "user": user.serialize()
         }), 200
+    
 
-    # ============================================================
-    #   GET ALL USERS / CREATE USER
-    # ============================================================
-    @app.route("/users", methods=["GET", "POST"])
-    def get_or_add_user():
+@app.route("/users", methods=["GET", "POST"])
+def get_or_add_user():
 
         if request.method == "GET":
             result = User.query.all()
             result = [u.serialize() for u in result]
             return jsonify(result), 200
 
+
         if request.method == "POST":
             datos = request.get_json()
+
+            # Validación básica
+            if User.query.filter_by(email=datos.get("email")).first():
+                return jsonify({"error": "Ese email ya está registrado"}), 400
 
             new_user = User(
                 name=datos.get("name"),
                 email=datos.get("email"),
-                password=datos.get("password"),
                 role=datos.get("role")
             )
 
+            # Hashear contraseña
+            new_user.set_password(datos.get("password"))
+
             db.session.add(new_user)
             db.session.commit()
+
+            return jsonify({
+                "mensaje": "Usuario creado correctamente",
+                "user": new_user.serialize()
+            }), 201
