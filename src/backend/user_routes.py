@@ -1,5 +1,7 @@
 from flask import request, jsonify
 from src.backend.models import db, User
+from flask_jwt_extended import create_access_token
+
 
 
 def register_user_routes(app):
@@ -60,3 +62,27 @@ def register_user_routes(app):
                 "estado": "ok",
                 "mensaje": "Usuario eliminado correctamente"
             }), 200
+        
+
+    @app.route("/token", methods=["POST"])
+    def create_token():
+        datos = request.get_json()
+
+        email = datos.get("email")
+        password = datos.get("password")
+
+        user = User.query.filter_by(email=email, password=password).first() #Verifica en la base de datos si existe ese email o contraseña
+
+        if not user:
+            return jsonify({
+                "estado": "error",
+                "mensaje": "bad user o password"
+            }), 401 #si no existe genera un eroor 401
+
+        token = create_access_token(identity=user.id) #si existe el token muetra los datos del usuario
+
+        return jsonify({
+            "estado": "ok",
+            "token": token,
+            "user": user.serialize()
+        }), 200
