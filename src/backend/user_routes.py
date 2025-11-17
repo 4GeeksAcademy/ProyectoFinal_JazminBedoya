@@ -79,10 +79,11 @@ def register_user_routes(app):
                 "mensaje": "bad user o password"
             }), 401 #si no existe genera un eroor 401
 
-        token = create_access_token(identity=user.id) #si existe el token muetra los datos del usuario
+        token = create_access_token(identity=user.id) #es como un tipo de obejto donde guarda el id del usuario y si encuentra genera el token
 
         return jsonify({
             "estado": "ok",
             "token": token,
             "user": user.serialize()
         }), 200
+    

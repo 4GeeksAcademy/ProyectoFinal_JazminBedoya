@@ -23,9 +23,7 @@ class User(db.Model):
         }
 
 
-# -----------------------------------------
-# MODELO DE GANADO
-# -----------------------------------------
+
 class Ganado(db.Model):
     __tablename__ = "ganado"
 
@@ -52,9 +50,6 @@ class Ganado(db.Model):
         }
 
 
-# -----------------------------------------
-# MODELO DE VENTAS
-# -----------------------------------------
 class Venta(db.Model):
     __tablename__ = "ventas"
 
